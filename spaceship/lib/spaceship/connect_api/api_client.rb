@@ -156,8 +156,8 @@ module Spaceship
         end
       end
 
-      def with_asc_retry(tries = 5, &_block)
-        tries = 1 if Object.const_defined?("SpecHelper")
+      def with_asc_retry(tries = 5, ignore_spec_lock = false, &_block)
+        tries = 1 if Object.const_defined?("SpecHelper") && !ignore_spec_lock
 
         response = yield
 

@@ -126,6 +126,26 @@ describe Spaceship::ConnectAPI::APIClient do
     end
   end
 
+  describe("retry on error") do
+    let(:mock_token) { double('token') }
+    let(:client) { Spaceship::ConnectAPI::APIClient.new(token: mock_token) }
+    let(:mock_response) { double('response') }
+
+    it 'refreshes token on 401 and does\'t fail after successful retry' do
+      allow(mock_response).to receive(:status).and_return(401)
+      allow(mock_token).to receive(:refresh!)
+
+      call_number = 0
+      client.send(:with_asc_retry, 2, true) do
+        call_number += 1
+        # Fail at first, succeed after all
+        if call_number == 1
+          raise Spaceship::UnauthorizedAccessError
+        end
+      end
+    end
+  end
+
   describe "#handle_error" do
     let(:mock_token) { double('token') }
     let(:client) { Spaceship::ConnectAPI::APIClient.new(token: mock_token) }
