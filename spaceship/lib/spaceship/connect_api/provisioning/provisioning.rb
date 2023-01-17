@@ -253,6 +253,12 @@ module Spaceship
           provisioning_request_client.post("profiles", body)
         end
 
+        def get_profile_bundle_id(profile_id: nil)
+          raise "Profile id is nil" if profile_id.nil?
+
+          provisioning_request_client.get("profiles/#{profile_id}/bundleId")
+        end
+
         def delete_profile(profile_id: nil)
           raise "Profile id is nil" if profile_id.nil?
 
