@@ -19,6 +19,9 @@ module Match
 
     attr_accessor :storage
 
+    attr_accessor :cached_portal_certificates
+    attr_accessor :cached_portal_devices
+
     # rubocop:disable Metrics/PerceivedComplexity
     def run(params)
       self.files_to_commit = []
@@ -361,45 +364,56 @@ module Match
       all_profiles = Spaceship::ConnectAPI::Profile.all(filter: { name: name }, includes: "devices")
       portal_profile = all_profiles.detect { |i| i.uuid == uuid }
 
-      if portal_profile
-        profile_device_count = portal_profile.devices.count
+      return false unless portal_profile
 
-        device_classes =
-          case platform
-          when :ios
-            [
-              Spaceship::ConnectAPI::Device::DeviceClass::IPAD,
-              Spaceship::ConnectAPI::Device::DeviceClass::IPHONE,
-              Spaceship::ConnectAPI::Device::DeviceClass::IPOD,
-              Spaceship::ConnectAPI::Device::DeviceClass::APPLE_WATCH
-            ]
-          when :tvos
-            [
-              Spaceship::ConnectAPI::Device::DeviceClass::APPLE_TV
-            ]
-          when :macos, :catalyst
-            [
-              Spaceship::ConnectAPI::Device::DeviceClass::MAC
-            ]
-          else
-            []
-          end
-        if platform == :ios && include_mac_in_profiles
-          device_classes += [Spaceship::ConnectAPI::Device::DeviceClass::APPLE_SILICON_MAC]
+      profile_device_count = portal_profile.devices.count
+
+      portal_devices = portal_devices(platform: platform, include_mac_in_profiles: include_mac_in_profiles)
+
+      portal_device_count = portal_devices.size
+
+      return portal_device_count != profile_device_count
+    end
+
+    def portal_devices(platform:, include_mac_in_profiles:)
+      # It can occur that parameters may infer cache.
+      # These are action parameters and their value is constant while the action is running.
+      return self.cached_portal_devices if self.cached_portal_devices
+
+      device_classes =
+        case platform
+        when :ios
+          [
+            Spaceship::ConnectAPI::Device::DeviceClass::IPAD,
+            Spaceship::ConnectAPI::Device::DeviceClass::IPHONE,
+            Spaceship::ConnectAPI::Device::DeviceClass::IPOD,
+            Spaceship::ConnectAPI::Device::DeviceClass::APPLE_WATCH
+          ]
+        when :tvos
+          [
+            Spaceship::ConnectAPI::Device::DeviceClass::APPLE_TV
+          ]
+        when :macos, :catalyst
+          [
+            Spaceship::ConnectAPI::Device::DeviceClass::MAC
+          ]
+        else
+          []
         end
-
-        devices = Spaceship::ConnectAPI::Device.all
-        unless device_classes.empty?
-          devices = devices.select do |device|
-            device_classes.include?(device.device_class) && device.enabled?
-          end
-        end
-
-        portal_device_count = devices.size
-
-        return portal_device_count != profile_device_count
+      if platform == :ios && include_mac_in_profiles
+        device_classes += [Spaceship::ConnectAPI::Device::DeviceClass::APPLE_SILICON_MAC]
       end
-      return false
+
+      devices = Spaceship::ConnectAPI::Device.all
+      unless device_classes.empty?
+        devices = devices.select do |device|
+          device_classes.include?(device.device_class) && device.enabled?
+        end
+      end
+
+      self.cached_portal_devices = devices
+
+      devices
     end
 
     def should_force_include_all_certificates(params: nil, prov_type: nil, profile: nil, keychain_path: nil)
@@ -447,6 +461,17 @@ module Match
       # Thus, we need to check the validity of profile certificates too.
       profile_certs_count = portal_profile.certificates.select(&:valid?).count
 
+      portal_certificates = portal_certificates(platform: platform)
+      portal_certs_count = portal_certificates.size
+
+      return portal_certs_count != profile_certs_count
+    end
+
+    def portal_certificates(platform:)
+      # It can occur that parameters may infer cache.
+      # These are action parameters and their value is constant while the action is running.
+      return self.cached_portal_certificates if self.cached_portal_certificates
+
       certificate_types =
         case platform
         when :ios, :tvos
@@ -470,9 +495,9 @@ module Match
         end
       end
 
-      portal_certs_count = certificates.size
+      self.cached_portal_certificates = certificates
 
-      return portal_certs_count != profile_certs_count
+      certificates
     end
   end
   # rubocop:enable Metrics/ClassLength
