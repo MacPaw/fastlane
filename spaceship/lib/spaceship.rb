@@ -7,6 +7,7 @@ require_relative 'spaceship/hashcash'
 
 # Middleware
 require_relative 'spaceship/stats_middleware'
+require_relative 'spaceship/size_stats_middleware'
 
 # Dev Portal
 require_relative 'spaceship/portal/portal'

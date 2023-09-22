@@ -18,6 +18,7 @@ require_relative 'tunes/errors'
 require_relative 'globals'
 require_relative 'provider'
 require_relative 'stats_middleware'
+require_relative 'size_stats_middleware'
 require_relative 'hashcash'
 
 Faraday::Utils.default_params_encoder = Faraday::FlatParamsEncoder
@@ -217,6 +218,7 @@ module Spaceship
         c.use(:cookie_jar, jar: @cookie)
         c.use(FaradayMiddleware::RelsMiddleware)
         c.use(Spaceship::StatsMiddleware)
+        c.use(Spaceship::SizeStatsMiddleware)
         c.adapter(Faraday.default_adapter)
 
         if ENV['SPACESHIP_DEBUG']

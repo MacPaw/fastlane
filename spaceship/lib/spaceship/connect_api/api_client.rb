@@ -44,6 +44,7 @@ module Spaceship
             c.response(:plist, content_type: /\bplist$/)
             c.use(FaradayMiddleware::RelsMiddleware)
             c.use(Spaceship::StatsMiddleware)
+            c.use(Spaceship::SizeStatsMiddleware)
             c.use(Spaceship::TokenRefreshMiddleware, token)
             c.adapter(Faraday.default_adapter)
 
