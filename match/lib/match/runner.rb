@@ -2,6 +2,8 @@ require 'fastlane_core/cert_checker'
 require 'fastlane_core/provisioning_profile'
 require 'fastlane_core/print_table'
 require 'spaceship/client'
+require 'sigh/module'
+
 require_relative 'generator'
 require_relative 'module'
 require_relative 'table_printer'
@@ -10,6 +12,8 @@ require_relative 'utils'
 
 require_relative 'storage'
 require_relative 'encryption'
+require_relative 'profile_includes'
+require_relative 'portal_cache'
 
 module Match
   # rubocop:disable Metrics/ClassLength
@@ -19,8 +23,7 @@ module Match
 
     attr_accessor :storage
 
-    attr_accessor :cached_portal_certificates
-    attr_accessor :cached_portal_devices
+    attr_accessor :cache
 
     # rubocop:disable Metrics/PerceivedComplexity
     def run(params)
@@ -63,12 +66,18 @@ module Match
 
       # sometimes we get an array with arrays, this is a bug. To unblock people using match, I suggest we flatten
       # then in the future address the root cause of https://github.com/fastlane/fastlane/issues/11324
-      app_identifiers = app_identifiers.flatten
+      app_identifiers = app_identifiers.flatten.uniq
 
-      # Verify the App ID (as we don't want 'match' to fail at a later point)
       if spaceship
+        # Cache bundle ids, certificates, profiles, and devices.
+        self.cache = Portal::Cache.build(
+          params: params,
+          bundle_id_identifiers: app_identifiers
+        )
+
+        # Verify the App ID (as we don't want 'match' to fail at a later point)
         app_identifiers.each do |app_identifier|
-          spaceship.bundle_identifier_exists(username: params[:username], app_identifier: app_identifier, platform: params[:platform])
+          spaceship.bundle_identifier_exists(username: params[:username], app_identifier: app_identifier, cached_bundle_ids: self.cache.bundle_ids)
         end
       end
 
@@ -81,17 +90,24 @@ module Match
         fetch_certificate(params: params, working_directory: storage.working_directory, specific_cert_type: additional_cert_type)
       end
 
+      profile_type = Sigh.profile_type_for_distribution_type(
+        platform: params[:platform],
+        distribution_type: params[:type]
+      )
+
       cert_ids << cert_id
-      spaceship.certificates_exists(username: params[:username], certificate_ids: cert_ids) if spaceship
+      spaceship.certificates_exists(username: params[:username], certificate_ids: cert_ids, platform: params[:platform], profile_type: profile_type, cached_certificates: self.cache.certificates) if spaceship
 
       # Provisioning Profiles
+
       unless params[:skip_provisioning_profiles]
         app_identifiers.each do |app_identifier|
           loop do
             break if fetch_provisioning_profile(params: params,
+                                          profile_type: profile_type,
                                         certificate_id: cert_id,
                                         app_identifier: app_identifier,
-                                    working_directory: storage.working_directory)
+                                     working_directory: storage.working_directory)
           end
         end
       end
@@ -144,12 +160,15 @@ module Match
 
       if certs.count == 0 || keys.count == 0
         UI.important("Couldn't find a valid code signing identity for #{cert_type}... creating one for you now")
-        UI.crash!("No code signing identity found and can not create a new one because you enabled `readonly`") if params[:readonly]
+        UI.crash!("No code signing identity found and cannot create a new one because you enabled `readonly`") if params[:readonly]
         cert_path = Generator.generate_certificate(params, cert_type, prefixed_working_directory, specific_cert_type: specific_cert_type)
         private_key_path = cert_path.gsub(".cer", ".p12")
 
         self.files_to_commit << cert_path
         self.files_to_commit << private_key_path
+
+        # Reset certificates cache since we have a new cert.
+        self.cache.reset_certificates
       else
         cert_path = select_cert_or_key(paths: certs)
 
@@ -202,7 +221,7 @@ module Match
 
     # rubocop:disable Metrics/PerceivedComplexity
     # @return [String] The UUID of the provisioning profile so we can verify it with the Apple Developer Portal
-    def fetch_provisioning_profile(params: nil, certificate_id: nil, app_identifier: nil, working_directory: nil)
+    def fetch_provisioning_profile(params: nil, profile_type:, certificate_id: nil, app_identifier: nil, working_directory: nil)
       prov_type = Match.profile_type_sym(params[:type])
 
       names = [Match::Generator.profile_type_name(prov_type), app_identifier]
@@ -225,20 +244,26 @@ module Match
       end
 
       # Install the provisioning profiles
-      profile = profiles.last
+      stored_profile_path = profiles.last
       force = params[:force]
 
-      if params[:force_for_new_devices]
-        force = should_force_include_all_devices(params: params, prov_type: prov_type, profile: profile, keychain_path: keychain_path) unless force
+      if spaceship
+        # check if profile needs to be updated only if not in readonly mode
+        portal_profile = self.cache.portal_profile(stored_profile_path: stored_profile_path, keychain_path: keychain_path) if stored_profile_path
+
+        if params[:force_for_new_devices]
+          force ||= ProfileIncludes.should_force_include_all_devices?(params: params, portal_profile: portal_profile, cached_devices: self.cache.devices)
+        end
+
+        if params[:include_all_certificates]
+          # Clearing specified certificate id which will prevent a profile being created with only one certificate
+          certificate_id = nil
+          force ||= ProfileIncludes.should_force_include_all_certificates?(params: params, portal_profile: portal_profile, cached_certificates: self.cache.certificates)
+        end
       end
 
-      if params[:include_all_certificates]
-        # Clearing specified certificate id which will prevent a profile being created with only one certificate
-        certificate_id = nil
-        force = should_force_include_all_certificates(params: params, prov_type: prov_type, profile: profile, keychain_path: keychain_path) unless force
-      end
-
-      if profile.nil? || force
+      is_new_profile_created = false
+      if stored_profile_path.nil? || force
         if params[:readonly]
           UI.error("No matching provisioning profiles found for '#{profile_file}'")
           UI.error("A new one cannot be created because you enabled `readonly`")
@@ -248,38 +273,51 @@ module Match
             all_profiles.each { |p| UI.error("- '#{p}'") }
           end
           UI.error("If you are certain that a profile should exist, double-check the recent changes to your match repository")
-          UI.user_error!("No matching provisioning profiles found and can not create a new one because you enabled `readonly`. Check the output above for more information.")
+          UI.user_error!("No matching provisioning profiles found and cannot create a new one because you enabled `readonly`. Check the output above for more information.")
         end
 
-        profile = Generator.generate_provisioning_profile(params: params,
-                                                       prov_type: prov_type,
-                                                  certificate_id: certificate_id,
-                                                  app_identifier: app_identifier,
-                                                           force: force,
-                                               working_directory: prefixed_working_directory)
-        self.files_to_commit << profile
+        stored_profile_path = Generator.generate_provisioning_profile(
+          params: params,
+          prov_type: prov_type,
+          certificate_id: certificate_id,
+          app_identifier: app_identifier,
+          force: force,
+          cache: self.cache,
+          working_directory: prefixed_working_directory
+        )
+
+        # Recreation of the profile means old profile is invalid.
+        # Removing it from cache. We don't need a new profile in cache.
+        self.cache.forget_portal_profile(portal_profile) if portal_profile
+
+        self.files_to_commit << stored_profile_path
+
+        is_new_profile_created = true
       end
 
-      if Helper.mac?
-        installed_profile = FastlaneCore::ProvisioningProfile.install(profile, keychain_path)
-      end
-      parsed = FastlaneCore::ProvisioningProfile.parse(profile, keychain_path)
+      parsed = FastlaneCore::ProvisioningProfile.parse(stored_profile_path, keychain_path)
       uuid = parsed["UUID"]
       name = parsed["Name"]
 
-      if params[:output_path]
-        FileUtils.cp(profile, params[:output_path])
-      end
+      check_profile_existence = !is_new_profile_created && spaceship
+      if check_profile_existence && !spaceship.profile_exists(profile_type: profile_type,
+                                                              name: name,
+                                                              username: params[:username],
+                                                              uuid: uuid,
+                                                              cached_profiles: self.cache.profiles)
 
-      if spaceship && !spaceship.profile_exists(type: prov_type,
-                                                name: name,
-                                                username: params[:username],
-                                                uuid: uuid,
-                                                platform: params[:platform])
         # This profile is invalid, let's remove the local file and generate a new one
-        File.delete(profile)
+        File.delete(stored_profile_path)
         # This method will be called again, no need to modify `files_to_commit`
         return nil
+      end
+
+      if Helper.mac?
+        installed_profile = FastlaneCore::ProvisioningProfile.install(stored_profile_path, keychain_path)
+      end
+
+      if params[:output_path]
+        FileUtils.cp(stored_profile_path, params[:output_path])
       end
 
       Utils.fill_environment(Utils.environment_variable_name(app_identifier: app_identifier,
@@ -313,171 +351,6 @@ module Match
       return uuid
     end
     # rubocop:enable Metrics/PerceivedComplexity
-
-    def should_force_include_all_devices(params: nil, prov_type: nil, profile: nil, keychain_path: nil)
-      return false unless params[:force_for_new_devices] && !params[:readonly]
-
-      force = false
-
-      prov_types_without_devices = [:appstore, :developer_id]
-      if !prov_types_without_devices.include?(prov_type) && !params[:force]
-        force = device_count_different?(profile: profile, keychain_path: keychain_path, platform: params[:platform].to_sym, include_mac_in_profiles: params[:include_mac_in_profiles])
-      else
-        # App Store provisioning profiles don't contain device identifiers and
-        # thus shouldn't be renewed if the device count has changed.
-        UI.important("Warning: `force_for_new_devices` is set but is ignored for App Store & Developer ID provisioning profiles.")
-        UI.important("You can safely stop specifying `force_for_new_devices` when running Match for type 'appstore' or 'developer_id'.")
-      end
-
-      return force
-    end
-
-    def device_count_different?(profile: nil, keychain_path: nil, platform: nil, include_mac_in_profiles: false)
-      return false unless profile
-
-      parsed = FastlaneCore::ProvisioningProfile.parse(profile, keychain_path)
-      uuid = parsed["UUID"]
-      name = parsed["Name"]
-
-      # Filtering by name allows us to filter out profiles way faster than querying all profiles
-      all_profiles = Spaceship::ConnectAPI::Profile.all(filter: { name: name }, includes: "devices")
-      portal_profile = all_profiles.detect { |i| i.uuid == uuid }
-
-      return false unless portal_profile
-
-      profile_device_count = portal_profile.devices.count
-
-      portal_devices = portal_devices(platform: platform, include_mac_in_profiles: include_mac_in_profiles)
-
-      portal_device_count = portal_devices.size
-
-      return portal_device_count != profile_device_count
-    end
-
-    def portal_devices(platform:, include_mac_in_profiles:)
-      # It can occur that parameters may infer cache.
-      # These are action parameters and their value is constant while the action is running.
-      return self.cached_portal_devices if self.cached_portal_devices
-
-      device_classes =
-        case platform
-        when :ios
-          [
-            Spaceship::ConnectAPI::Device::DeviceClass::IPAD,
-            Spaceship::ConnectAPI::Device::DeviceClass::IPHONE,
-            Spaceship::ConnectAPI::Device::DeviceClass::IPOD,
-            Spaceship::ConnectAPI::Device::DeviceClass::APPLE_WATCH
-          ]
-        when :tvos
-          [
-            Spaceship::ConnectAPI::Device::DeviceClass::APPLE_TV
-          ]
-        when :macos, :catalyst
-          [
-            Spaceship::ConnectAPI::Device::DeviceClass::MAC
-          ]
-        else
-          []
-        end
-      if platform == :ios && include_mac_in_profiles
-        device_classes += [Spaceship::ConnectAPI::Device::DeviceClass::APPLE_SILICON_MAC]
-      end
-
-      devices = Spaceship::ConnectAPI::Device.all
-      unless device_classes.empty?
-        devices = devices.select do |device|
-          device_classes.include?(device.device_class) && device.enabled?
-        end
-      end
-
-      self.cached_portal_devices = devices
-
-      devices
-    end
-
-    def should_force_include_all_certificates(params: nil, prov_type: nil, profile: nil, keychain_path: nil)
-      unless params[:include_all_certificates]
-        if params[:force_for_new_certificates]
-          UI.important("You specified 'force_for_new_certificates: true', but new certificates will not be added, cause 'include_all_certificates' is 'false'")
-        end
-        return false
-      end
-
-      force = false
-
-      if params[:force_for_new_certificates] && !params[:readonly]
-        if prov_type == :development && !params[:force]
-          force = certificate_count_different?(profile: profile, keychain_path: keychain_path, platform: params[:platform].to_sym)
-        else
-          # All other (not development) provisioning profiles don't contain
-          # multiple certificates, thus shouldn't be renewed
-          # if the certificates  count has changed.
-          UI.important("Warning: `force_for_new_certificates` is set but is ignored for non-'development' provisioning profiles.")
-          UI.important("You can safely stop specifying `force_for_new_certificates` when running Match for '#{prov_type}' provisioning profiles.")
-        end
-      end
-
-      return force
-    end
-
-    def certificate_count_different?(profile: nil, keychain_path: nil, platform: nil)
-      return false unless profile
-
-      parsed = FastlaneCore::ProvisioningProfile.parse(profile, keychain_path)
-      uuid = parsed["UUID"]
-      name = parsed["Name"]
-
-      # Filtering by name allows us to filter out profiles way faster than querying all profiles
-      all_profiles = Spaceship::ConnectAPI::Profile.all(filter: { name: name }, includes: "certificates")
-      portal_profile = all_profiles.detect { |i| i.uuid == uuid }
-
-      return false unless portal_profile
-
-      # When a certificate expires (not revoked) provisioning profile stays valid.
-      # And if we regenerate certificate count will not differ:
-      #   * For portal certificates, we filter out the expired one but includes a new certificate;
-      #   * Profile still contains an expired certificate and is valid.
-      # Thus, we need to check the validity of profile certificates too.
-      profile_certs_count = portal_profile.certificates.select(&:valid?).count
-
-      portal_certificates = portal_certificates(platform: platform)
-      portal_certs_count = portal_certificates.size
-
-      return portal_certs_count != profile_certs_count
-    end
-
-    def portal_certificates(platform:)
-      # It can occur that parameters may infer cache.
-      # These are action parameters and their value is constant while the action is running.
-      return self.cached_portal_certificates if self.cached_portal_certificates
-
-      certificate_types =
-        case platform
-        when :ios, :tvos
-          [
-            Spaceship::ConnectAPI::Certificate::CertificateType::DEVELOPMENT,
-            Spaceship::ConnectAPI::Certificate::CertificateType::IOS_DEVELOPMENT
-          ]
-        when :macos, :catalyst
-          [
-            Spaceship::ConnectAPI::Certificate::CertificateType::DEVELOPMENT,
-            Spaceship::ConnectAPI::Certificate::CertificateType::MAC_APP_DEVELOPMENT
-          ]
-        else
-          []
-        end
-
-      certificates = Spaceship::ConnectAPI::Certificate.all
-      unless certificate_types.empty?
-        certificates = certificates.select do |certificate|
-          certificate_types.include?(certificate.certificateType) && certificate.valid?
-        end
-      end
-
-      self.cached_portal_certificates = certificates
-
-      certificates
-    end
   end
   # rubocop:enable Metrics/ClassLength
 end

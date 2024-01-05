@@ -70,7 +70,7 @@ module FastlaneCore
 
     # @param options [FastlaneCore::Configuration|Hash] a set of configuration to run xcodebuild to work out build settings
     # @param xcodebuild_list_silent [Boolean] a flag to silent xcodebuild command's output
-    # @param xcodebuild_suppress_stderr [Boolean] a flag to supress output to stderr from xcodebuild
+    # @param xcodebuild_suppress_stderr [Boolean] a flag to suppress output to stderr from xcodebuild
     def initialize(options)
       @options = options
       @path = File.expand_path(self.options[:workspace] || self.options[:project])
@@ -192,7 +192,7 @@ module FastlaneCore
                               .reject { |p| p.include?("Pods/Pods.xcodeproj") }
                               .map do |p|
                                 # To maintain backwards compatibility, we
-                                # silently ignore non-existent projects from
+                                # silently ignore nonexistent projects from
                                 # workspaces.
                                 begin
                                   Xcodeproj::Project.open(p).build_configurations
@@ -364,6 +364,7 @@ module FastlaneCore
       else
         command = "xcodebuild clean -showBuildSettings #{xcodebuild_parameters.join(' ')}"
       end
+      command = "#{command} 2>&1" # xcodebuild produces errors on stderr #21672
       command
     end
 
