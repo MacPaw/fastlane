@@ -245,9 +245,14 @@ module Fastlane
         end
 
         # Everything from the GitHub API (e.g. open issues and stars)
+        ALLOWED_GITHUB_REPOS = [
+          "https://github.com/fastlane/fastlane",
+          "https://github.com/fastlane/other-repo"
+        ]
+
         def append_github_data
           # e.g. https://api.github.com/repos/fastlane/fastlane
-          if valid_github_url?(self.homepage)
+          if valid_github_url?(self.homepage) && ALLOWED_GITHUB_REPOS.include?(self.homepage)
             url = self.homepage.gsub("github.com/", "api.github.com/repos/")
             url = url[0..-2] if url.end_with?("/") # what is this, 2001? We got to remove the trailing `/` otherwise GitHub will fail
             puts("Fetching #{url}")
@@ -288,7 +293,7 @@ module Fastlane
             cache_data[:github_forks] = self.data[:github_forks]
             cache_data[:github_contributors] = self.data[:github_contributors]
           else
-            raise "Invalid GitHub URL: #{self.homepage}"
+            raise "Invalid or unauthorized GitHub URL: #{self.homepage}"
           end
         rescue => ex
           puts("error fetching #{self}")
