@@ -187,7 +187,7 @@ module Fastlane
     end
 
     # Execute shell command
-    # Accepts arguments with with and without the command named keyword so that sh
+    # Accepts arguments with and without the command named keyword so that sh
     # behaves like other actions with named keywords
     # https://github.com/fastlane/fastlane/issues/14930
     #
@@ -218,7 +218,9 @@ module Fastlane
     end
 
     def self.sh(*command, step_name: nil, log: true, error_callback: nil, &b)
-      command_header = log ? step_name || Actions.shell_command_from_args(*command) : "shell command"
+      command_header = step_name
+      command_header ||= log ? Actions.shell_command_from_args(*command) : "shell command"
+
       Actions.execute_action(command_header) do
         Actions.sh_no_action(*command, log: log, error_callback: error_callback, &b)
       end
