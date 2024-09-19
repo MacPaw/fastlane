@@ -39,7 +39,7 @@ module Match
 
             create_subfolders(working_directory)
             File.open(destination_file, "wb") do |saved_file|
-              URI.open(url, "rb", { @client.authentication_key => @client.authentication_value }) do |data|
+              URI(url).open("rb", { @client.authentication_key => @client.authentication_value }) do |data|
                 saved_file.write(data.read)
               end
 
