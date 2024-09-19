@@ -7,7 +7,7 @@ require 'fastlane/version'
 # Copy over the latest .rubocop.yml style guide
 require 'yaml'
 rubocop_config = File.expand_path('../.rubocop.yml', __FILE__)
-config = YAML.safe_load(open(rubocop_config))
+config = YAML.safe_load(File.open(rubocop_config))
 config['require'] = [
   'rubocop/require_tools',
   'rubocop-performance'
