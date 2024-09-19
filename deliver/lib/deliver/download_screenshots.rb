@@ -1,6 +1,6 @@
 require_relative 'module'
 require 'spaceship'
-require 'open-uri'
+require 'net/http'
 
 module Deliver
   class DownloadScreenshots
@@ -68,9 +68,15 @@ module Deliver
           end
 
           path = File.join(containing_folder, file_name)
-          File.binwrite(path, URI.open(url).read)
+          File.binwrite(path, fetch_url_content(url))
         end
       end
+    end
+    def self.fetch_url_content(url)
+      uri = URI(url)
+      response = Net::HTTP.get_response(uri)
+      raise "Failed to fetch URL: #{url}" unless response.is_a?(Net::HTTPSuccess)
+      response.body
     end
   end
 end
