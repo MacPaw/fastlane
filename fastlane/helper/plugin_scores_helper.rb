@@ -235,48 +235,61 @@ module Fastlane
           end
         end
 
+        # Validate the GitHub URL against a whitelist
+        def valid_github_url?(url)
+          allowed_urls = [
+            "https://github.com/fastlane/fastlane",
+            # Add more allowed URLs here
+          ]
+          allowed_urls.any? { |allowed_url| url.start_with?(allowed_url) }
+        end
+
         # Everything from the GitHub API (e.g. open issues and stars)
         def append_github_data
           # e.g. https://api.github.com/repos/fastlane/fastlane
-          url = self.homepage.gsub("github.com/", "api.github.com/repos/")
-          url = url[0..-2] if url.end_with?("/") # what is this, 2001? We got to remove the trailing `/` otherwise GitHub will fail
-          puts("Fetching #{url}")
-          conn = Faraday.new(url: url) do |builder|
-            # The order below IS important
-            # See bug here https://github.com/lostisland/faraday_middleware/issues/105
-            builder.use(FaradayMiddleware::FollowRedirects)
-            builder.adapter(Faraday.default_adapter)
+          if valid_github_url?(self.homepage)
+            url = self.homepage.gsub("github.com/", "api.github.com/repos/")
+            url = url[0..-2] if url.end_with?("/") # what is this, 2001? We got to remove the trailing `/` otherwise GitHub will fail
+            puts("Fetching #{url}")
+            conn = Faraday.new(url: url) do |builder|
+              # The order below IS important
+              # See bug here https://github.com/lostisland/faraday_middleware/issues/105
+              builder.use(FaradayMiddleware::FollowRedirects)
+              builder.adapter(Faraday.default_adapter)
+            end
+            conn.basic_auth(ENV["GITHUB_USER_NAME"], ENV["GITHUB_API_TOKEN"])
+            response = conn.get('')
+            repo_details = JSON.parse(response.body)
+
+            url += "/stats/contributors"
+            puts("Fetching #{url}")
+            conn = Faraday.new(url: url) do |builder|
+              # The order below IS important
+              # See bug here https://github.com/lostisland/faraday_middleware/issues/105
+              builder.use(FaradayMiddleware::FollowRedirects)
+              builder.adapter(Faraday.default_adapter)
+            end
+
+            conn.basic_auth(ENV["GITHUB_USER_NAME"], ENV["GITHUB_API_TOKEN"])
+            response = conn.get('')
+            contributor_details = JSON.parse(response.body)
+
+            self.data[:github_stars] = repo_details["stargazers_count"].to_i
+            self.data[:github_subscribers] = repo_details["subscribers_count"].to_i
+            self.data[:github_issues] = repo_details["open_issues_count"].to_i
+            self.data[:github_forks] = repo_details["forks_count"].to_i
+            self.data[:github_contributors] = contributor_details.count
+
+            cache_data = self.cache[self.name]
+
+            cache_data[:github_stars] = self.data[:github_stars]
+            cache_data[:github_subscribers] = self.data[:github_subscribers]
+            cache_data[:github_issues] = self.data[:github_issues]
+            cache_data[:github_forks] = self.data[:github_forks]
+            cache_data[:github_contributors] = self.data[:github_contributors]
+          else
+            raise "Invalid GitHub URL: #{self.homepage}"
           end
-          conn.basic_auth(ENV["GITHUB_USER_NAME"], ENV["GITHUB_API_TOKEN"])
-          response = conn.get('')
-          repo_details = JSON.parse(response.body)
-
-          url += "/stats/contributors"
-          puts("Fetching #{url}")
-          conn = Faraday.new(url: url) do |builder|
-            # The order below IS important
-            # See bug here https://github.com/lostisland/faraday_middleware/issues/105
-            builder.use(FaradayMiddleware::FollowRedirects)
-            builder.adapter(Faraday.default_adapter)
-          end
-
-          conn.basic_auth(ENV["GITHUB_USER_NAME"], ENV["GITHUB_API_TOKEN"])
-          response = conn.get('')
-          contributor_details = JSON.parse(response.body)
-
-          self.data[:github_stars] = repo_details["stargazers_count"].to_i
-          self.data[:github_subscribers] = repo_details["subscribers_count"].to_i
-          self.data[:github_issues] = repo_details["open_issues_count"].to_i
-          self.data[:github_forks] = repo_details["forks_count"].to_i
-          self.data[:github_contributors] = contributor_details.count
-
-          cache_data = self.cache[self.name]
-
-          cache_data[:github_stars] = self.data[:github_stars]
-          cache_data[:github_subscribers] = self.data[:github_subscribers]
-          cache_data[:github_issues] = self.data[:github_issues]
-          cache_data[:github_forks] = self.data[:github_forks]
-          cache_data[:github_contributors] = self.data[:github_contributors]
         rescue => ex
           puts("error fetching #{self}")
           puts(self.homepage)
