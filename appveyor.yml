@@ -23,7 +23,7 @@ init:
 # cloning the repository happens here
 
 install:
-  - set PATH=C:\Ruby30-x64\bin;%PATH%
+  - set PATH=C:\Ruby31-x64\bin;%PATH%
   - ruby --version
   - ruby .ci/compatible_gem_version
   - FOR /F "usebackq delims==" %%A IN (`ruby .ci/compatible_gem_version`) DO gem update --no-document --system %%A
