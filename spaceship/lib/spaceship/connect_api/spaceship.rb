@@ -1,6 +1,6 @@
-require_relative './client'
+require_relative 'client'
 
-require_relative './testflight/testflight'
+require_relative 'testflight/testflight'
 
 module Spaceship
   class ConnectAPI

@@ -1,5 +1,5 @@
 require_relative 'module'
-require_relative './device'
+require_relative 'device'
 require 'deliver/app_screenshot'
 
 module Frameit

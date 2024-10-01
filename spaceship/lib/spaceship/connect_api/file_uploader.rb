@@ -1,5 +1,6 @@
 require 'faraday' # HTTP Client
 require 'faraday-cookie_jar'
+require 'faraday_middleware'
 
 require 'spaceship/globals'
 
@@ -44,8 +45,8 @@ module Spaceship
         puts("Uploading complete!") if Spaceship::Globals.verbose?
       end
 
-      def self.with_retry(tries = 5, &_block)
-        tries = 1 if Object.const_defined?("SpecHelper")
+      def self.with_retry(tries = 5, &)
+        tries = 1 if Object.const_defined?(:SpecHelper)
         response = yield
 
         tries -= 1

@@ -29,9 +29,8 @@ module Spaceship
       }
 
       def roles
-        parsed_roles = []
-        raw_data["roles"].each do |role|
-          parsed_roles << role["value"]["name"]
+        parsed_roles = raw_data["roles"].map do |role|
+          role["value"]["name"]
         end
         return parsed_roles
       end

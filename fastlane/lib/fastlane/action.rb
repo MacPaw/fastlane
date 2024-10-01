@@ -129,7 +129,7 @@ module Fastlane
     end
 
     # Allows the user to call an action from an action
-    def self.method_missing(method_sym, *arguments, &_block)
+    def self.method_missing(method_sym, *arguments, &)
       UI.error("Unknown method '#{method_sym}'")
       UI.user_error!("To call another action from an action use `other_action.#{method_sym}` instead")
     end

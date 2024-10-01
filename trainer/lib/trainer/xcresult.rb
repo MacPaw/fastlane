@@ -135,7 +135,7 @@ module Trainer
         self.subtests = fetch_values(data, "subtests").map do |subtests_data|
           ActionTestSummaryIdentifiableObject.create(subtests_data, self)
         end
-        super(data, parent)
+        super
       end
 
       def all_subtests
@@ -165,7 +165,7 @@ module Trainer
         self.performance_metrics_count = fetch_value(data, "performanceMetricsCount")
         self.failure_summaries_count = fetch_value(data, "failureSummariesCount")
         self.activity_summaries_count = fetch_value(data, "activitySummariesCount")
-        super(data, parent)
+        super
       end
 
       def all_subtests

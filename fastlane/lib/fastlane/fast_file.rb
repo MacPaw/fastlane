@@ -155,8 +155,8 @@ module Fastlane
     end
 
     # Is used to look if the method is implemented as an action
-    def method_missing(method_sym, *arguments, &_block)
-      self.runner.trigger_action_by_name(method_sym, nil, false, *arguments)
+    def method_missing(method_sym, *, &)
+      self.runner.trigger_action_by_name(method_sym, nil, false, *)
     end
 
     #####################################################
@@ -197,7 +197,7 @@ module Fastlane
     #  sh(command: "ls")
     #  sh(command: "ls", step_name: "listing the files")
     #  sh(command: "ls", log: false)
-    def sh(*args, &b)
+    def sh(*args, &)
       # First accepts hash (or named keywords) like other actions
       # Otherwise uses sh method that doesn't have an interface like an action
       if args.count == 1 && args.first.kind_of?(Hash)
@@ -206,14 +206,14 @@ module Fastlane
 
         raise ArgumentError, "sh requires :command keyword in argument" if command.nil?
         log = options[:log].nil? ? true : options[:log]
-        FastFile.sh(*command, step_name: options[:step_name], log: log, error_callback: options[:error_callback], &b)
+        FastFile.sh(*command, step_name: options[:step_name], log: log, error_callback: options[:error_callback], &)
       elsif args.count != 1 && args.last.kind_of?(Hash)
         new_args = args.dup
         options = new_args.pop
         log = options[:log].nil? ? true : options[:log]
-        FastFile.sh(*new_args, step_name: options[:step_name], log: log, error_callback: options[:error_callback], &b)
+        FastFile.sh(*new_args, step_name: options[:step_name], log: log, error_callback: options[:error_callback], &)
       else
-        FastFile.sh(*args, &b)
+        FastFile.sh(*args, &)
       end
     end
 

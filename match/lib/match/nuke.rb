@@ -202,7 +202,7 @@ module Match
         cert_ids = self.certs.map(&:id)
         self.profiles = self.profiles.select do |profile|
           profile_cert_ids = profile.certificates.map(&:id)
-          (cert_ids & profile_cert_ids).any?
+          cert_ids.intersect?(profile_cert_ids)
         end
 
         # Do file selection logic

@@ -1607,7 +1607,7 @@ module Spaceship
 
     private
 
-    def with_tunes_retry(tries = 5, potential_server_error_tries = 3, &_block)
+    def with_tunes_retry(tries = 5, potential_server_error_tries = 3, &)
       return yield
     rescue Spaceship::TunesClient::ITunesConnectTemporaryError => ex
       seconds_to_sleep = 60

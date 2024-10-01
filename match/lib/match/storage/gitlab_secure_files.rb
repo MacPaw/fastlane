@@ -2,13 +2,13 @@ require 'fastlane_core/command_executor'
 require 'fastlane_core/configuration/configuration'
 require 'net/http/post/multipart'
 
-require_relative './gitlab/client'
-require_relative './gitlab/secure_file'
+require_relative 'gitlab/client'
+require_relative 'gitlab/secure_file'
 
 require_relative '../options'
 require_relative '../module'
 require_relative '../spaceship_ensure'
-require_relative './interface'
+require_relative 'interface'
 
 module Match
   module Storage

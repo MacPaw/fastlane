@@ -142,8 +142,8 @@ describe Fastlane::Actions do
   end
 end
 
-def command_from_args(*args)
-  Fastlane::Actions.shell_command_from_args(*args)
+def command_from_args(*)
+  Fastlane::Actions.shell_command_from_args(*)
 end
 
 def expect_command(*command, exitstatus: 0, output: "")

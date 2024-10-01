@@ -1,9 +1,9 @@
 
 require_relative '../client'
-require_relative './response'
+require_relative 'response'
 require_relative '../client'
-require_relative './response'
-require_relative './token_refresh_middleware'
+require_relative 'response'
+require_relative 'token_refresh_middleware'
 
 require_relative '../stats_middleware'
 
@@ -163,7 +163,7 @@ module Spaceship
         end
       end
 
-      def with_asc_retry(tries = 5, backoff = 1, &_block)
+      def with_asc_retry(tries = 5, backoff = 1, &)
         response = yield
 
         status = response.status if response

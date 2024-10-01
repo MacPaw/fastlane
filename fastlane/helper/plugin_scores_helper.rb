@@ -213,7 +213,7 @@ module Fastlane
               tests_count = 0
               Dir["spec/**/*_spec.rb"].each do |spec_file|
                 # poor person's way to detect the number of tests, good enough to get a sense
-                tests_count += File.read(spec_file).scan(/ it /).count
+                tests_count += File.read(spec_file).scan(' it ').count
               end
               self.data[:tests] = tests_count
 

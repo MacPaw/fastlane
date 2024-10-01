@@ -1,8 +1,8 @@
 require_relative 'test_commander_program'
 
 # Necessary, as we're now running this in a different context
-def stub_request(*args)
-  WebMock::API.stub_request(*args)
+def stub_request(*)
+  WebMock::API.stub_request(*)
 end
 
 def before_each_fastlane_core

@@ -325,10 +325,8 @@ module Supply
       apk_paths = [Supply.config[:apk]] unless (apk_paths = Supply.config[:apk_paths])
       apk_paths.compact!
 
-      apk_version_codes = []
-
-      apk_paths.each do |apk_path|
-        apk_version_codes.push(upload_binary_data(apk_path))
+      apk_version_codes = apk_paths.map do |apk_path|
+        upload_binary_data(apk_path)
       end
 
       return apk_version_codes

@@ -51,9 +51,9 @@ module Spaceship::TestFlight
       groups.find(&:default_external_group?)
     end
 
-    def self.filter_groups(app_id: nil, &block)
+    def self.filter_groups(app_id: nil, &)
       groups = self.all(app_id: app_id)
-      groups.select(&block)
+      groups.select(&)
     end
 
     def self.internal_group(app_id: nil)
@@ -110,7 +110,7 @@ module Spaceship::TestFlight
       builds.map { |b| Spaceship::TestFlight::Build.new(b) }
     end
 
-    def self.perform_for_groups_in_app(app: nil, groups: nil, &block)
+    def self.perform_for_groups_in_app(app: nil, groups: nil, &)
       if groups.nil?
         default_external_group = app.default_external_group
         if default_external_group.nil?
@@ -125,7 +125,7 @@ module Spaceship::TestFlight
         raise "There are no groups available matching the names passed to the `:groups` option." if test_flight_groups.empty?
       end
 
-      test_flight_groups.each(&block)
+      test_flight_groups.each(&)
     end
   end
 end

@@ -119,7 +119,7 @@ module Supply
 
     def self.service_account_authentication(params: nil)
       if params[:json_key] || params[:json_key_data]
-        super(params: params)
+        super
       elsif params[:key] && params[:issuer]
         require 'google/api_client/auth/key_utils'
         UI.important("This type of authentication is deprecated. Please consider using JSON authentication instead")

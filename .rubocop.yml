@@ -25,7 +25,8 @@ AllCops:
     - '**/*.provisionprofile'
 
 Style/HashSyntax:
-  HashShorthandSyntax: consistent
+  SupportedShorthandSyntax: consistent
+  EnforcedShorthandSyntax: either
 
 Lint/ErbNewArguments:
   Enabled: false

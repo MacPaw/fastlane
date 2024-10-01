@@ -212,6 +212,8 @@ module Precheck
     # As of 2020-09-04, this is the only non App Store Connect call in prechecks
     # This will need to get replaced when the API becomes available
     def self.get_iaps(app_id: nil, include_deleted: false)
+      require 'ostruct'
+
       r = Spaceship::Tunes.client.iaps(app_id: app_id)
       return_iaps = []
       r.each do |product|
@@ -255,7 +257,7 @@ end
 # because we use .each
 module LanguageItemHashBehavior
   # this is used to create a hash-like .each method.
-  def each(&block)
+  def each(&)
     keys.each { |key| yield(key, get_value(key: key)) }
   end
 end

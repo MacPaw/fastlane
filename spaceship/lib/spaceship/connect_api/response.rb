@@ -1,4 +1,4 @@
-require_relative './model'
+require_relative 'model'
 
 module Spaceship
   class ConnectAPI
@@ -22,7 +22,7 @@ module Spaceship
         return links["next"]
       end
 
-      def next_page(&block)
+      def next_page(&)
         url = next_url
         return nil if url.nil?
         if block_given?
@@ -53,8 +53,8 @@ module Spaceship
         return responses
       end
 
-      def all_pages(&block)
-        return next_pages(count: nil, &block)
+      def all_pages(&)
+        return next_pages(count: nil, &)
       end
 
       def to_models
@@ -63,7 +63,7 @@ module Spaceship
         return [model_or_models].flatten
       end
 
-      def each(&block)
+      def each(&)
         to_models.each do |model|
           yield(model)
         end

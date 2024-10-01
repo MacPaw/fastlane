@@ -20,13 +20,13 @@ module FastlaneCore
   end
 
   class FastlanePty
-    def self.spawn(command, &block)
-      spawn_with_pty(command, &block)
+    def self.spawn(command, &)
+      spawn_with_pty(command, &)
     rescue LoadError
-      spawn_with_popen(command, &block)
+      spawn_with_popen(command, &)
     end
 
-    def self.spawn_with_pty(command, &block)
+    def self.spawn_with_pty(command, &)
       require 'pty'
       PTY.spawn(command) do |command_stdout, command_stdin, pid|
         begin
@@ -54,7 +54,7 @@ module FastlaneCore
       raise FastlanePtyError.new(e, status.exitstatus || e.exit_status, status)
     end
 
-    def self.spawn_with_popen(command, &block)
+    def self.spawn_with_popen(command, &)
       status = nil
       require 'open3'
       Open3.popen2e(command) do |command_stdin, command_stdout, p| # note the inversion

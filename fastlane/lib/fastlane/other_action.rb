@@ -10,7 +10,7 @@ module Fastlane
     end
 
     # Allows the user to call an action from an action
-    def method_missing(method_sym, *arguments, &_block)
+    def method_missing(method_sym, *, &)
       # We have to go inside the fastlane directory
       # since in the fastlane runner.rb we do the following
       #   custom_dir = ".."
@@ -23,7 +23,7 @@ module Fastlane
       self.runner.trigger_action_by_name(method_sym,
                                          FastlaneCore::FastlaneFolder.path,
                                          true,
-                                         *arguments)
+                                         *)
     end
   end
 end

@@ -682,7 +682,7 @@ module Spaceship
     # @!group Helpers
     #####################################################
 
-    def with_retry(tries = 5, &_block)
+    def with_retry(tries = 5, &)
       return yield
     rescue \
         Faraday::ConnectionFailed,
@@ -751,13 +751,13 @@ module Spaceship
       @additional_headers || {}
     end
 
-    def request(method, url_or_path = nil, params = nil, headers = {}, auto_paginate = false, &block)
+    def request(method, url_or_path = nil, params = nil, headers = {}, auto_paginate = false, &)
       headers.merge!(csrf_tokens)
       headers.merge!(additional_headers)
       headers['User-Agent'] = USER_AGENT
 
       # Before encoding the parameters, log them
-      log_request(method, url_or_path, params, headers, &block)
+      log_request(method, url_or_path, params, headers, &)
 
       # form-encode the params only if there are params, and the block is not supplied.
       # this is so that certain requests can be made using the block for more control
@@ -766,9 +766,9 @@ module Spaceship
       end
 
       response = if auto_paginate
-                   send_request_auto_paginate(method, url_or_path, params, headers, &block)
+                   send_request_auto_paginate(method, url_or_path, params, headers, &)
                  else
-                   send_request(method, url_or_path, params, headers, &block)
+                   send_request(method, url_or_path, params, headers, &)
                  end
 
       return response
@@ -865,9 +865,9 @@ module Spaceship
       end
     end
 
-    def log_request(method, url, params, headers = nil, &block)
-      url ||= extract_key_from_block('url', &block)
-      body = extract_key_from_block('body', &block)
+    def log_request(method, url, params, headers = nil, &)
+      url ||= extract_key_from_block('url', &)
+      body = extract_key_from_block('body', &)
       body_to_log = '[undefined body]'
       if body
         begin
@@ -889,13 +889,13 @@ module Spaceship
       logger.info(">> #{method.upcase} #{url}: #{body_to_log} #{params_to_log.join(', ')}")
     end
 
-    def log_response(method, url, response, headers = nil, &block)
-      url ||= extract_key_from_block('url', &block)
+    def log_response(method, url, response, headers = nil, &)
+      url ||= extract_key_from_block('url', &)
       body = response.body.kind_of?(String) ? response.body.force_encoding(Encoding::UTF_8) : response.body
       logger.debug("<< #{method.upcase} #{url}: #{response.status} #{body}")
     end
 
-    def extract_key_from_block(key, &block)
+    def extract_key_from_block(key, &)
       if block_given?
         obj = Object.new
         class << obj
@@ -957,12 +957,12 @@ module Spaceship
       end
     end
 
-    def send_request_auto_paginate(method, url_or_path, params, headers, &block)
-      response = send_request(method, url_or_path, params, headers, &block)
+    def send_request_auto_paginate(method, url_or_path, params, headers, &)
+      response = send_request(method, url_or_path, params, headers, &)
       return response unless should_process_next_rel?(response)
       last_response = response
       while last_response.env.rels[:next]
-        last_response = send_request(method, last_response.env.rels[:next], params, headers, &block)
+        last_response = send_request(method, last_response.env.rels[:next], params, headers, &)
         break unless should_process_next_rel?(last_response)
         response.body['data'].concat(last_response.body['data'])
       end

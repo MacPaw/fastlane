@@ -37,7 +37,7 @@ module Spaceship
     end
 
     def initialize(app)
-      super(app)
+      super
     end
 
     def call(env)

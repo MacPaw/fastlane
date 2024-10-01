@@ -1,6 +1,6 @@
 require_relative 'helper'
 require 'xcodeproj'
-require_relative './configuration/configuration'
+require_relative 'configuration/configuration'
 require 'fastlane_core/command_executor'
 
 module FastlaneCore

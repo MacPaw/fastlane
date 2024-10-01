@@ -116,7 +116,7 @@ module FastlaneCore
     end
 
     def displayable_errors
-      @errors.map { |error| "[Transporter Error Output]: #{error}" }.join("\n").gsub!(/"/, "")
+      @errors.map { |error| "[Transporter Error Output]: #{error}" }.join("\n").gsub!('"', "")
     end
 
     def parse_provider_info(lines)
