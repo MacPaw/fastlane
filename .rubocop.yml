@@ -24,6 +24,9 @@ AllCops:
     - '**/spec/fixtures/broken_files/broken_file.rb'
     - '**/*.provisionprofile'
 
+Style/HashSyntax:
+  HashShorthandSyntax: consistent
+
 Lint/ErbNewArguments:
   Enabled: false
 
