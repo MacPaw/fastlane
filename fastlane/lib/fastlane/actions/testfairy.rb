@@ -9,7 +9,7 @@ module Fastlane
     class TestfairyAction < Action
       def self.upload_build(upload_url, ipa, options, timeout)
         require 'faraday'
-        require 'faraday_middleware'
+        require 'faraday/follow_redirects'
 
         UI.success("Uploading to #{upload_url}...")
 
@@ -18,7 +18,7 @@ module Fastlane
           builder.request(:url_encoded)
           builder.request(:retry, max: 3, interval: 5)
           builder.response(:json, content_type: /\bjson$/)
-          builder.use(FaradayMiddleware::FollowRedirects)
+          builder.use(Faraday::FollowRedirects::Middleware)
           builder.adapter(:net_http)
         end
 

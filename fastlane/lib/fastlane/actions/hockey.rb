@@ -9,7 +9,7 @@ module Fastlane
     class HockeyAction < Action
       def self.connection(options)
         require 'faraday'
-        require 'faraday_middleware'
+        require 'faraday/follow_redirects'
 
         base_url = options.delete(:bypass_cdn) ? "https://rink.hockeyapp.net" : "https://upload.hockeyapp.net"
         foptions = {
@@ -19,7 +19,7 @@ module Fastlane
           builder.request(:multipart)
           builder.request(:url_encoded)
           builder.response(:json, content_type: /\bjson$/)
-          builder.use(FaradayMiddleware::FollowRedirects)
+          builder.use(Faraday::FollowRedirects::Middleware)
           builder.adapter(:net_http)
         end
       end
