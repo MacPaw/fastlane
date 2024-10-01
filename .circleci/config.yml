@@ -251,19 +251,9 @@ workflows:
   "Run Tests & Checks": # Name of the workflow, which ends up displayed on GitHub's PR Check
     jobs:
       - tests_macos:
-          name: 'Execute tests on macOS (Xcode 13.4.1, Ruby 3.1)'
+          name: 'Execute tests on macOS (Xcode 13.4.1, Ruby 3.2)'
           xcode_version: '13.4.1'
-          ruby_version: '3.1'
-          ruby_opt: -W:deprecated
-      - tests_macos:
-          name: 'Execute tests on macOS (Xcode 14.3.1, Ruby 3.1)'
-          xcode_version: '14.3.1'
-          ruby_version: '3.1'
-          ruby_opt: -W:deprecated
-      - tests_macos:
-          name: 'Execute tests on macOS (Xcode 15.0.1, Ruby 3.1)'
-          xcode_version: '15.0.1'
-          ruby_version: '3.1'
+          ruby_version: '3.2'
           ruby_opt: -W:deprecated
       - tests_macos:
           name: 'Execute tests on macOS (Xcode 14.3.1, Ruby 3.2)'
@@ -286,8 +276,8 @@ workflows:
           ruby_opt: -W:deprecated
       - tests_ubuntu:
           name: 'Execute tests on Ubuntu'
-          image: 'cimg/ruby:3.1-node'
-          ruby_version: '3.0'
+          image: 'cimg/ruby:3.2-node'
+          ruby_version: '3.2'
       - validate_fastlane_swift_generation:
           name: 'Validate Fastlane.swift generation'
           xcode_version: '15.0.1'
@@ -298,8 +288,8 @@ workflows:
           ruby_version: '3.2'
       - lint_source_code:
           name: 'Lint source code'
-          image: 'cimg/ruby:3.1'
-          ruby_version: '3.0'
+          image: 'cimg/ruby:3.2'
+          ruby_version: '3.2'
       - modules_load_up_tests:
           name: 'Modules load up tests'
-          image: 'cimg/ruby:3.1'
+          image: 'cimg/ruby:3.2'
