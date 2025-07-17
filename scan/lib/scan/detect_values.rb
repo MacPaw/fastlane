@@ -158,6 +158,7 @@ module Scan
 
     def self.compatibility_constraint(sim, device_name)
       latest_os = default_os_version(sim.os_type)
+      UI.message("sim: #{sim.name} #{sim.os_version} #{latest_os}")
       sim.name == device_name && (latest_os.nil? || Gem::Version.new(sim.os_version) <= latest_os)
     end
 
@@ -205,6 +206,7 @@ module Scan
       # We create 2 lambdas, which we iterate over later on
       # If the first lambda `matches` found a simulator to use
       # we'll never call the second one
+      UI.message("simulators: #{simulators}")
       matches = lambda do
         set_of_simulators = devices.inject(
           Set.new # of simulators
@@ -213,6 +215,7 @@ module Scan
 
           display_device = "'#{device_string}'"
 
+          UI.message("pieces: #{pieces}")
           set + (
             if pieces.count == 0
               [] # empty array
